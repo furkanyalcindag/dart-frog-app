@@ -16,6 +16,8 @@ extension ToMap<T> on Iterable<Map<String, T>> {
 }
 
 final dioClient = dio.Dio();
+final devUrl = 'https://mehmet-api.cpiss.org';
+final apiUrl = 'https://api.map2heal.com';
 class Uint8Source {
   Uint8Source(this.data);
   Uint8List data;
@@ -71,7 +73,7 @@ class FileStreamObject{
     this.max,
     this.count,
     this.start,
-    this.end,
+    // this.end,
 
   }){
     if(!file.existsSync()){
@@ -82,6 +84,13 @@ class FileStreamObject{
     timer=Timer(const Duration(hours: 6), () {
       FileCollector.closeStream(sid:sid);
     });
+  }
+
+  DateTime? get end{
+    return start?.add(Duration(milliseconds: (count?.toInt()?? 0) *8));
+  }
+  bool get isSync{
+    return sid.toLowerCase().startsWith('sync');
   }
   StreamController<Uint8List> streamController;
   File file;
@@ -94,10 +103,11 @@ class FileStreamObject{
   num? max;
   num? count;
   DateTime? start;
-  DateTime? end;
+  // DateTime? end;
   Map<String,dynamic> toJson(){
     return{
       'file':file.path,
+      'isSync':isSync,
       'sid':sid,
       'sn':sn,
       'own':own,
@@ -141,14 +151,15 @@ class FileStreamObject{
       await closeStream();
       await Future.delayed(const Duration(milliseconds: 500));
     }
+
     final token= await dioClient.get(
-      'https://api.map2heal.com/remote-patient/external/get-token-by-remote-patient?id=$own',
+      '$apiUrl/remote-patient/external/get-token-by-remote-patient?id=$own',
       options: dio.Options(
         headers: {
           'x-locale': 'en-gb',
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'x-api': 'v8',
+          'x-api': 'v7',
           'x-encrypted': 0,
         },
       ),
@@ -157,6 +168,8 @@ class FileStreamObject{
     })
     .catchError((dynamic error) {
       if (error is dio.DioError) {
+        print('$apiUrl/remote-patient/external/get-token-by-remote-patient?id=$own');
+        print("Error Message>>>>dio ${error.type}");
         print("Error Message>>>>dio ${error.message}");
         print("Error Message>>>>dio ${error.response?.statusMessage}");
         print("Error Message>>>>dio ${error.response?.data}");
@@ -174,14 +187,14 @@ class FileStreamObject{
     }
     if(token !=null){
       return dioClient.post<Map<String, dynamic>>(
-        'https://api.map2heal.com/remote-patient/external/create-measurement',
+        '$apiUrl/remote-patient/external/create-measurement',
         options: dio.Options(
           headers: {
             'authorization': 'Bearer $token',
             'x-locale': 'en-gb',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'x-api': 'v8',
+            'x-api': 'v7',
             'x-encrypted': 0,
           },
         ),
@@ -191,14 +204,17 @@ class FileStreamObject{
             'RemotePatientMeasurement': <String, dynamic>{
               'remote_patient_id': own,
               'remote_patient_loinc_num': '71575-5',
-              'data': (sid.startsWith('sync_')) ? 'ECG-Sync' : 'ECG-Stream',
+              'data': isSync ? 'ECG-Sync' : 'ECG-Stream',
               'param': 'binary',
               'uuid': sid,
               'data_float': count,
               'forceUpdate': 1,
               'addAttributes': [
+                if(isSync) {
+                  'RemotePatientMeasurementAttribute': {'type': 'number','name': 'ecgSync','hidden': 1,'value': '1',}
+                },
                 {
-                  'RemotePatientMeasurementAttribute': {'type': 'number','name': 'xScaleFactor','hidden': 1,'loinc': '71575-5','value': '1.0',}
+                  'RemotePatientMeasurementAttribute': {'type': 'number','name': 'xScaleFactor','hidden': 1,'loinc': '71575-5','value': sn.toUpperCase().startsWith('HC02') ? '0.25' : '1',}
                 },
                 {
                   'RemotePatientMeasurementAttribute': {'type': 'number','name': 'yScaleFactor','hidden': 1,'loinc': '71575-5','value': '1.0',}
@@ -239,6 +255,8 @@ class FileStreamObject{
         return value.data?['success'] == true;
       }).catchError((dynamic error) {
       if (error is dio.DioError) {
+        print('$apiUrl/remote-patient/external/create-measurement');
+        print("Error Message>>>>dio ${error.type}");
         print("Error Message>>>>dio ${error.message}");
         print("Error Message>>>>dio ${error.response?.statusMessage}");
         print("Error Message>>>>dio ${error.response?.data}");
@@ -247,7 +265,7 @@ class FileStreamObject{
         print("Error Message>>>> ${error}");
         return error.toString();
       }
-    });;
+    });
     }
     return false;
 

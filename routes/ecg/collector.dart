@@ -15,6 +15,7 @@ Future<frog.Response> onRequest(frog.RequestContext context) async {
   // Access the incoming request.
   final request = context.request;
   final params = request.uri.queryParameters;
+  final device = params['device']?.toString();
   final action = params['action']?.toString();
   final sid = params['sid']?.toString();
   var status = 422;
@@ -71,7 +72,7 @@ Future<frog.Response> onRequest(frog.RequestContext context) async {
         });
         ecgItemcache.clear();
         if(sn !=null && own != null){
-          if(FileCollector.addStream(sid: sid, own: own!, sn: sn!, data: Uint8List.fromList(output))){
+          if(FileCollector.addStream(sid: sid, own: own!, sn: sn!, data: Uint8List.fromList(output),)){
             FileCollector.getFileStreamObject(sid)?.count=(FileCollector.getFileStreamObject(sid)?.count??0)+1;
 
             FileCollector.getFileStreamObject(sid)?.max ??=max;
@@ -87,10 +88,10 @@ Future<frog.Response> onRequest(frog.RequestContext context) async {
             if(FileCollector.getFileStreamObject(sid)?.start?.isAfter(cstart) ?? true){
               FileCollector.getFileStreamObject(sid)?.start=cstart;
             }
-            final cend=DateTime.fromMicrosecondsSinceEpoch(end!);
-            if(FileCollector.getFileStreamObject(sid)?.end?.isBefore(cend) ?? true){
-              FileCollector.getFileStreamObject(sid)?.end=cend;
-            }
+            // final cend=DateTime.fromMicrosecondsSinceEpoch(end!);
+            // if(FileCollector.getFileStreamObject(sid)?.end?.isBefore(cend) ?? true){
+            //   FileCollector.getFileStreamObject(sid)?.end=cend;
+            // }
           }
         }
         status=200;
